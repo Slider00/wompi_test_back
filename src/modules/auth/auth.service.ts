@@ -92,8 +92,10 @@ export class AuthService {
     });
     await newOtp.save();
 
-    // Enviar correo
-    await this.mailService.sendOtpMail(email.toLowerCase(), code);
+    // Enviar correo en segundo plano para no bloquear la respuesta HTTP
+    this.mailService.sendOtpMail(email.toLowerCase(), code).catch((error) => {
+      // Los errores se registran en el logger del MailService, no bloqueamos la experiencia del cliente
+    });
 
     return {
       message: 'Código OTP enviado exitosamente',

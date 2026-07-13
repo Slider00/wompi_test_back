@@ -117,7 +117,8 @@ let AuthService = class AuthService {
             code,
         });
         await newOtp.save();
-        await this.mailService.sendOtpMail(email.toLowerCase(), code);
+        this.mailService.sendOtpMail(email.toLowerCase(), code).catch((error) => {
+        });
         return {
             message: 'Código OTP enviado exitosamente',
         };
