@@ -104,12 +104,20 @@ export class AuthService {
     const { email, code } = verifyOtpDto;
 
     const record = await this.otpModel.findOne({ email: email.toLowerCase() }).exec();
-    if (!record || record.code !== code) {
+    
+    // Si no hay servidor SMTP configurado (modo desarrollo/local), permitimos "123456" como código genérico
+    const isMockMode = !process.env.SMTP_HOST;
+    const isValidCode = record && record.code === code;
+    const isTestCode = isMockMode && code === '123456';
+
+    if (!isValidCode && !isTestCode) {
       throw new UnauthorizedException('Código inválido o expirado');
     }
 
-    // Eliminar el código tras verificarlo con éxito
-    await this.otpModel.deleteOne({ _id: record._id });
+    // Eliminar el código tras verificarlo con éxito (si existe)
+    if (record) {
+      await this.otpModel.deleteOne({ _id: record._id });
+    }
 
     // Activar al usuario en la base de datos
     await this.usersService.verifyUser(email);
