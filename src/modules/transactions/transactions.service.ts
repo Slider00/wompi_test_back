@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Transaction, TransactionDocument } from './schemas/transaction.schema';
@@ -8,6 +8,8 @@ import { WompiService } from './wompi.service';
 
 @Injectable()
 export class TransactionsService {
+  private readonly logger = new Logger(TransactionsService.name);
+
   constructor(
     @InjectModel(Transaction.name) private readonly transactionModel: Model<TransactionDocument>,
     private readonly productsService: ProductsService,
@@ -110,6 +112,36 @@ export class TransactionsService {
   }
 
   async findAllByUserId(userId: string): Promise<TransactionDocument[]> {
-    return this.transactionModel.find({ userId }).sort({ createdAt: -1 }).exec();
+    const transactions = await this.transactionModel.find({ userId }).sort({ createdAt: -1 }).exec();
+
+    // Sincronizar en tiempo real el estado de transacciones pendientes con la API de Wompi
+    for (const tx of transactions) {
+      if (tx.status === 'PENDING') {
+        try {
+          const wompiStatus = await this.wompiService.getTransactionStatus(tx.id);
+          
+          let mappedStatus = tx.status;
+          if (wompiStatus === 'APPROVED') {
+            mappedStatus = 'APPROVED';
+            // Si pasa a aprobada, descontamos stock
+            await this.productsService.decreaseStock(tx.cart);
+          } else if (wompiStatus === 'DECLINED') {
+            mappedStatus = 'DECLINED';
+          } else if (wompiStatus === 'ERROR' || wompiStatus === 'FAILED') {
+            mappedStatus = 'FAILED';
+          }
+
+          if (mappedStatus !== tx.status) {
+            tx.status = mappedStatus;
+            await tx.save();
+            this.logger.log(`Sincronización: Transacción ${tx.id} actualizada de PENDING a ${mappedStatus}`);
+          }
+        } catch (error: any) {
+          this.logger.error(`Error al sincronizar transacción pendiente ${tx.id}:`, error.message);
+        }
+      }
+    }
+
+    return transactions;
   }
 }

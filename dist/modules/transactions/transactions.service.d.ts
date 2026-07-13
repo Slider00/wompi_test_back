@@ -7,6 +7,7 @@ export declare class TransactionsService {
     private readonly transactionModel;
     private readonly productsService;
     private readonly wompiService;
+    private readonly logger;
     constructor(transactionModel: Model<TransactionDocument>, productsService: ProductsService, wompiService: WompiService);
     create(userId: string, createDto: CreateTransactionDto): Promise<TransactionDocument>;
     updateStatus(id: string, status?: string): Promise<TransactionDocument>;

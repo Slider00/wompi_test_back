@@ -11,6 +11,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
+var TransactionsService_1;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.TransactionsService = void 0;
 const common_1 = require("@nestjs/common");
@@ -19,10 +20,11 @@ const mongoose_2 = require("mongoose");
 const transaction_schema_1 = require("./schemas/transaction.schema");
 const products_service_1 = require("../products/products.service");
 const wompi_service_1 = require("./wompi.service");
-let TransactionsService = class TransactionsService {
+let TransactionsService = TransactionsService_1 = class TransactionsService {
     transactionModel;
     productsService;
     wompiService;
+    logger = new common_1.Logger(TransactionsService_1.name);
     constructor(transactionModel, productsService, wompiService) {
         this.transactionModel = transactionModel;
         this.productsService = productsService;
@@ -94,11 +96,38 @@ let TransactionsService = class TransactionsService {
         return transaction.save();
     }
     async findAllByUserId(userId) {
-        return this.transactionModel.find({ userId }).sort({ createdAt: -1 }).exec();
+        const transactions = await this.transactionModel.find({ userId }).sort({ createdAt: -1 }).exec();
+        for (const tx of transactions) {
+            if (tx.status === 'PENDING') {
+                try {
+                    const wompiStatus = await this.wompiService.getTransactionStatus(tx.id);
+                    let mappedStatus = tx.status;
+                    if (wompiStatus === 'APPROVED') {
+                        mappedStatus = 'APPROVED';
+                        await this.productsService.decreaseStock(tx.cart);
+                    }
+                    else if (wompiStatus === 'DECLINED') {
+                        mappedStatus = 'DECLINED';
+                    }
+                    else if (wompiStatus === 'ERROR' || wompiStatus === 'FAILED') {
+                        mappedStatus = 'FAILED';
+                    }
+                    if (mappedStatus !== tx.status) {
+                        tx.status = mappedStatus;
+                        await tx.save();
+                        this.logger.log(`Sincronización: Transacción ${tx.id} actualizada de PENDING a ${mappedStatus}`);
+                    }
+                }
+                catch (error) {
+                    this.logger.error(`Error al sincronizar transacción pendiente ${tx.id}:`, error.message);
+                }
+            }
+        }
+        return transactions;
     }
 };
 exports.TransactionsService = TransactionsService;
-exports.TransactionsService = TransactionsService = __decorate([
+exports.TransactionsService = TransactionsService = TransactionsService_1 = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, mongoose_1.InjectModel)(transaction_schema_1.Transaction.name)),
     __metadata("design:paramtypes", [mongoose_2.Model,
