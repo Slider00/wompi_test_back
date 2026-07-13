@@ -57,7 +57,11 @@ let MailService = MailService_1 = class MailService {
         const port = this.configService.get('SMTP_PORT');
         const user = this.configService.get('SMTP_USER');
         const pass = this.configService.get('SMTP_PASS');
-        if (host && port && user && pass) {
+        const brevoApiKey = this.configService.get('BREVO_API_KEY');
+        if (brevoApiKey) {
+            this.logger.log('Brevo HTTP API Mailer initialized successfully.');
+        }
+        else if (host && port && user && pass) {
             this.transporter = nodemailer.createTransport({
                 host,
                 port: Number(port),
@@ -70,7 +74,7 @@ let MailService = MailService_1 = class MailService {
             this.logger.log('SMTP Mail Transporter initialized successfully.');
         }
         else {
-            this.logger.warn('SMTP configurations missing in environment. Using console logging for OTP delivery.');
+            this.logger.warn('Neither Brevo API Key nor SMTP configurations found. Using console logging for OTP delivery.');
         }
     }
     async sendOtpMail(email, code) {
@@ -86,6 +90,35 @@ let MailService = MailService_1 = class MailService {
         <p style="color: #666; font-size: 12px; text-align: center;">Este código expira en 5 minutos.</p>
       </div>
     `;
+        const brevoApiKey = this.configService.get('BREVO_API_KEY');
+        if (brevoApiKey) {
+            try {
+                const fromEmail = this.configService.get('SMTP_USER') || 'noreply@wompi.com';
+                const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+                    method: 'POST',
+                    headers: {
+                        'accept': 'application/json',
+                        'api-key': brevoApiKey,
+                        'content-type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        sender: { name: 'Wompi Store', email: fromEmail },
+                        to: [{ email }],
+                        subject,
+                        htmlContent: html,
+                    }),
+                });
+                if (!response.ok) {
+                    const errorDetails = await response.text();
+                    throw new Error(`Brevo responded with status ${response.status}: ${errorDetails}`);
+                }
+                this.logger.log(`OTP mail successfully sent to ${email} via Brevo API`);
+                return;
+            }
+            catch (error) {
+                this.logger.error(`Failed to send OTP mail to ${email} via Brevo API`, error);
+            }
+        }
         if (this.transporter) {
             try {
                 await this.transporter.sendMail({
@@ -101,7 +134,7 @@ let MailService = MailService_1 = class MailService {
                 this.logger.warn(`[SMTP FALLBACK] No se pudo enviar el correo del OTP a ${email}. Puedes usar el código de prueba '123456' o este código generado: ${code}`);
             }
         }
-        else {
+        else if (!brevoApiKey) {
             this.logger.log(`SMTP missing. OTP verification code for ${email}: ${code}`);
         }
     }
