@@ -3,8 +3,6 @@ import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
-import { SendOtpDto } from './dto/send-otp.dto';
-import { VerifyOtpDto } from './dto/verify-otp.dto';
 
 @ApiTags('Authentication')
 @Controller('auth')
@@ -27,23 +25,5 @@ export class AuthController {
   @ApiResponse({ status: 401, description: 'Credenciales inválidas' })
   async login(@Body() loginDto: LoginDto) {
     return this.authService.login(loginDto);
-  }
-
-  @Post('otp/send')
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Generar y enviar código de verificación OTP' })
-  @ApiResponse({ status: 200, description: 'Código OTP enviado exitosamente' })
-  @ApiResponse({ status: 400, description: 'Correo inválido' })
-  async sendOtp(@Body() sendOtpDto: SendOtpDto) {
-    return this.authService.sendOtp(sendOtpDto);
-  }
-
-  @Post('otp/verify')
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Verificar código OTP' })
-  @ApiResponse({ status: 200, description: 'Código verificado con éxito' })
-  @ApiResponse({ status: 401, description: 'Código incorrecto o expirado' })
-  async verifyOtp(@Body() verifyOtpDto: VerifyOtpDto) {
-    return this.authService.verifyOtp(verifyOtpDto);
   }
 }

@@ -1,24 +1,16 @@
 import { ConflictException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
 import * as bcrypt from 'bcrypt';
 import { UsersService } from '../users/users.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
-import { SendOtpDto } from './dto/send-otp.dto';
-import { VerifyOtpDto } from './dto/verify-otp.dto';
-import { Otp, OtpDocument } from './schemas/otp.schema';
-import { MailService } from './services/mail.service';
 
 @Injectable()
 export class AuthService {
   constructor(
     private readonly usersService: UsersService,
     private readonly jwtService: JwtService,
-    private readonly mailService: MailService,
-    @InjectModel(Otp.name) private readonly otpModel: Model<OtpDocument>,
-  ) {}
+  ) { }
 
   async register(registerDto: RegisterDto) {
     const { email, password, name } = registerDto;
@@ -73,57 +65,5 @@ export class AuthService {
     };
   }
 
-  async sendOtp(sendOtpDto: SendOtpDto) {
-    const { email } = sendOtpDto;
 
-    // Generar código de 6 dígitos
-    const code = Math.floor(100000 + Math.random() * 900000).toString();
-
-    // Eliminar códigos previos para este correo
-    await this.otpModel.deleteMany({ email: email.toLowerCase() });
-
-    // Guardar nuevo código en BD
-    const newOtp = new this.otpModel({
-      email: email.toLowerCase(),
-      code,
-    });
-    await newOtp.save();
-
-    // Enviar correo en segundo plano para no bloquear la respuesta HTTP
-    this.mailService.sendOtpMail(email.toLowerCase(), code).catch((error) => {
-      // Los errores se registran en el logger del MailService, no bloqueamos la experiencia del cliente
-    });
-
-    return {
-      message: 'Código OTP enviado exitosamente',
-    };
-  }
-
-  async verifyOtp(verifyOtpDto: VerifyOtpDto) {
-    const { email, code } = verifyOtpDto;
-
-    const record = await this.otpModel.findOne({ email: email.toLowerCase() }).exec();
-    
-    // Si no hay servidor SMTP configurado (modo desarrollo/local), permitimos "123456" como código genérico
-    const isMockMode = !process.env.SMTP_HOST;
-    const isValidCode = record && record.code === code;
-    const isTestCode = isMockMode && code === '123456';
-
-    if (!isValidCode && !isTestCode) {
-      throw new UnauthorizedException('Código inválido o expirado');
-    }
-
-    // Eliminar el código tras verificarlo con éxito (si existe)
-    if (record) {
-      await this.otpModel.deleteOne({ _id: record._id });
-    }
-
-    // Activar al usuario en la base de datos
-    await this.usersService.verifyUser(email);
-
-    return {
-      success: true,
-      message: 'Código OTP verificado exitosamente. Su cuenta ha sido activada.',
-    };
-  }
 }

@@ -20,9 +20,6 @@ export class WompiService {
   /**
    * Obtiene el token de aceptación (acceptance_token) del comercio desde Wompi.
    */
-  /**
-   * Obtiene el token de aceptación (acceptance_token) del comercio desde Wompi.
-   */
   async getAcceptanceToken(): Promise<string> {
     try {
       const response = await fetch(`${this.baseUrl}/merchants/${this.publicKey}`);
