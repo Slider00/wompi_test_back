@@ -77,12 +77,11 @@ let AuthService = class AuthService {
             }
         }
         const newUser = await this.usersService.create(email, password, name);
-        await this.sendOtp({ email: newUser.email });
         return {
             id: newUser._id.toString(),
             email: newUser.email,
             name: newUser.name,
-            message: 'Usuario registrado. Se ha enviado un código de verificación OTP a su correo.',
+            message: 'Usuario registrado exitosamente. Ya puede iniciar sesión.',
         };
     }
     async login(loginDto) {

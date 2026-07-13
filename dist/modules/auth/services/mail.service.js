@@ -58,7 +58,11 @@ let MailService = MailService_1 = class MailService {
         const user = this.configService.get('SMTP_USER');
         const pass = this.configService.get('SMTP_PASS');
         const brevoApiKey = this.configService.get('BREVO_API_KEY');
-        if (brevoApiKey) {
+        const resendApiKey = this.configService.get('RESEND_API_KEY');
+        if (resendApiKey) {
+            this.logger.log('Resend HTTP API Mailer initialized successfully.');
+        }
+        else if (brevoApiKey) {
             this.logger.log('Brevo HTTP API Mailer initialized successfully.');
         }
         else if (host && port && user && pass) {
@@ -74,7 +78,7 @@ let MailService = MailService_1 = class MailService {
             this.logger.log('SMTP Mail Transporter initialized successfully.');
         }
         else {
-            this.logger.warn('Neither Brevo API Key nor SMTP configurations found. Using console logging for OTP delivery.');
+            this.logger.warn('Neither Resend API Key, Brevo API Key, nor SMTP configurations found. Using console logging for OTP delivery.');
         }
     }
     async sendOtpMail(email, code) {
@@ -90,6 +94,33 @@ let MailService = MailService_1 = class MailService {
         <p style="color: #666; font-size: 12px; text-align: center;">Este código expira en 5 minutos.</p>
       </div>
     `;
+        const resendApiKey = this.configService.get('RESEND_API_KEY');
+        if (resendApiKey) {
+            try {
+                const response = await fetch('https://api.resend.com/emails', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${resendApiKey}`,
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        from: 'onboarding@resend.dev',
+                        to: email,
+                        subject,
+                        html,
+                    }),
+                });
+                if (!response.ok) {
+                    const errorDetails = await response.text();
+                    throw new Error(`Resend responded with status ${response.status}: ${errorDetails}`);
+                }
+                this.logger.log(`OTP mail successfully sent to ${email} via Resend API`);
+                return;
+            }
+            catch (error) {
+                this.logger.error(`Failed to send OTP mail to ${email} via Resend API`, error);
+            }
+        }
         const brevoApiKey = this.configService.get('BREVO_API_KEY');
         if (brevoApiKey) {
             try {
