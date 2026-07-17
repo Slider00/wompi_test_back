@@ -27,14 +27,16 @@ Tener instalado Node.js (v18+) y una base de datos MongoDB (local o en la nube).
 2. Configurar variables de entorno (crear archivo `.env` en la raíz):
    ```env
    PORT=3000
-   MONGODB_URI=tu_conexion_mongodb
-   JWT_SECRET=tu_jwt_secret
-   JWT_EXPIRATION=3600s
+APP_ENV=production
+TEST_VAR=hola_prod
+MONGODB_URI=mongodb+srv://wompi:BqLYGXMaiUT2A8Jk6@wompitest.jgn8hgg.mongodb.net/wompi_prod?retryWrites=true&w=majority&appName=WompiTest
+JWT_SECRET=wompi_secure_secret_change_me_in_prod
+JWT_EXPIRATION=3600s
 
-   WOMPI_PUBLIC_KEY=pub_stagtest_...
-   WOMPI_PRIVATE_KEY=prv_stagtest_...
-   WOMPI_INTEGRITY_SECRET=stagtest_integrity_...
-   WOMPI_BASE_URL=https://api-sandbox.co.uat.wompi.dev/v1
+WOMPI_PUBLIC_KEY=pub_stagtest_g2u0HQd3ZMh05hsSgTS2lUV8t3s4mOt7
+WOMPI_PRIVATE_KEY=prv_stagtest_5i0ZGIGiFcDQifYsXxvsny7Y37tKqFWg
+WOMPI_INTEGRITY_SECRET=stagtest_integrity_nAIBuqayW70XpUqJS4qf4STYiISd89Fp
+WOMPI_BASE_URL=https://api-sandbox.co.uat.wompi.dev/v1
    ```
 
 3. Correr el servidor en desarrollo:
